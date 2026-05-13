@@ -18,7 +18,12 @@
         }
 
         h1 {
+            margin-bottom: 10px;
+        }
+
+        #liveTime {
             margin-bottom: 30px;
+            color: #666;
         }
 
         .card {
@@ -26,6 +31,13 @@
             padding: 20px;
             border-radius: 10px;
             margin-bottom: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .chart-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
         }
 
         table {
@@ -43,6 +55,10 @@
             background: #eeeeee;
         }
 
+        tbody tr:nth-child(even) {
+            background: #fafafa;
+        }
+
     </style>
 
 </head>
@@ -51,12 +67,48 @@
 
     <h1>Smart Farming Dashboard</h1>
 
-    <div class="card">
+    <p id="liveTime"></p>
 
-        <canvas id="sensorChart"></canvas>
+    <div class="chart-grid">
+
+        <!-- ========================= -->
+        <!-- TEMPERATURE -->
+        <!-- ========================= -->
+        <div class="card">
+
+            <h2>Temperature</h2>
+
+            <canvas id="tempChart"></canvas>
+
+        </div>
+
+        <!-- ========================= -->
+        <!-- HUMIDITY -->
+        <!-- ========================= -->
+        <div class="card">
+
+            <h2>Humidity</h2>
+
+            <canvas id="humChart"></canvas>
+
+        </div>
+
+        <!-- ========================= -->
+        <!-- LUX -->
+        <!-- ========================= -->
+        <div class="card">
+
+            <h2>Light Intensity</h2>
+
+            <canvas id="luxChart"></canvas>
+
+        </div>
 
     </div>
 
+    <!-- ========================= -->
+    <!-- TABLE -->
+    <!-- ========================= -->
     <div class="card">
 
         <table>
@@ -83,55 +135,126 @@
 
     <script>
 
-        const ctx = document.getElementById('sensorChart');
+        // =========================
+        // TEMPERATURE CHART
+        // =========================
+        const tempChart = new Chart(
+            document.getElementById('tempChart'),
+            {
 
-        const sensorChart = new Chart(ctx, {
+                type: 'line',
 
-            type: 'line',
+                data: {
 
-            data: {
+                    labels: [],
 
-                labels: [],
+                    datasets: [
+                        {
+                            label: 'Temperature (°C)',
+                            data: [],
+                            tension: 0.3
+                        }
+                    ]
+                },
 
-                datasets: [
+                options: {
 
-                    {
-                        label: 'Temperature (°C)',
-                        data: [],
-                        tension: 0.3
-                    },
+                    responsive: true,
 
-                    {
-                        label: 'Humidity (%)',
-                        data: [],
-                        tension: 0.3
-                    },
+                    animation: false,
 
-                    {
-                        label: 'Lux (lx)',
-                        data: [],
-                        tension: 0.3
-                    }
-
-                ]
-            },
-
-            options: {
-
-                responsive: true,
-
-                animation: false,
-
-                scales: {
-
-                    y: {
-                        beginAtZero: true
+                    scales: {
+                        y: {
+                            min: 20,
+                            max: 40
+                        }
                     }
                 }
             }
-        });
+        );
 
 
+        // =========================
+        // HUMIDITY CHART
+        // =========================
+        const humChart = new Chart(
+            document.getElementById('humChart'),
+            {
+
+                type: 'line',
+
+                data: {
+
+                    labels: [],
+
+                    datasets: [
+                        {
+                            label: 'Humidity (%)',
+                            data: [],
+                            tension: 0.3
+                        }
+                    ]
+                },
+
+                options: {
+
+                    responsive: true,
+
+                    animation: false,
+
+                    scales: {
+                        y: {
+                            min: 0,
+                            max: 100
+                        }
+                    }
+                }
+            }
+        );
+
+
+        // =========================
+        // LUX CHART
+        // =========================
+        const luxChart = new Chart(
+            document.getElementById('luxChart'),
+            {
+
+                type: 'line',
+
+                data: {
+
+                    labels: [],
+
+                    datasets: [
+                        {
+                            label: 'Lux (lx)',
+                            data: [],
+                            tension: 0.3
+                        }
+                    ]
+                },
+
+                options: {
+
+                    responsive: true,
+
+                    animation: false,
+
+                    scales: {
+                        y: {
+                            min: 0,
+                            max: 200
+                        }
+                    }
+                }
+            }
+        );
+
+
+        // =========================
+        // UPDATE DASHBOARD
+        // =========================
         async function updateDashboard() {
 
             const response = await fetch('/api/latest');
@@ -141,12 +264,11 @@
             // =========================
             // UPDATE TABLE
             // =========================
-
             const tableBody = document.getElementById('tableBody');
 
             tableBody.innerHTML = '';
 
-            data.forEach(row => {
+            [...data].reverse().forEach(row => {
 
                 tableBody.innerHTML += `
                     <tr>
@@ -161,30 +283,71 @@
 
 
             // =========================
-            // UPDATE CHART
+            // LABELS
             // =========================
+            const labels =
+                data.map(row =>
+                    row.timestamp.split(" ")[1]
+                );
 
-            sensorChart.data.labels =
-                data.map(row => row.timestamp);
 
-            sensorChart.data.datasets[0].data =
+            // =========================
+            // TEMPERATURE
+            // =========================
+            tempChart.data.labels = labels;
+
+            tempChart.data.datasets[0].data =
                 data.map(row => row.temperature);
 
-            sensorChart.data.datasets[1].data =
+            tempChart.update();
+
+
+            // =========================
+            // HUMIDITY
+            // =========================
+            humChart.data.labels = labels;
+
+            humChart.data.datasets[0].data =
                 data.map(row => row.humidity);
 
-            sensorChart.data.datasets[2].data =
+            humChart.update();
+
+
+            // =========================
+            // LUX
+            // =========================
+            luxChart.data.labels = labels;
+
+            luxChart.data.datasets[0].data =
                 data.map(row => row.lux);
 
-            sensorChart.update();
+            luxChart.update();
         }
 
 
+        // =========================
         // LOAD AWAL
+        // =========================
         updateDashboard();
 
-        // REALTIME PER 1 DETIK
+
+        // =========================
+        // REALTIME UPDATE
+        // =========================
         setInterval(updateDashboard, 1000);
+
+
+        // =========================
+        // LIVE CLOCK
+        // =========================
+        setInterval(() => {
+
+            const now = new Date();
+
+            document.getElementById("liveTime").innerText =
+                "Live Time: " + now.toLocaleTimeString();
+
+        }, 1000);
 
     </script>
 

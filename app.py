@@ -96,7 +96,7 @@ def latest_data():
         SELECT *
         FROM sensor_data
         ORDER BY id DESC
-        LIMIT 20
+        LIMIT 30
     """)
 
     rows = cursor.fetchall()
