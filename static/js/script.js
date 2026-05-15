@@ -245,7 +245,7 @@ function updateCharts(fullData) {
     const luxRange = getAdaptiveRange(luxValues, 10);
     luxChart.data.labels = labels;
     luxChart.data.datasets[0].data = luxValues;
-    luxChart.options.scales.y.min = Math.max(0, luxRange.min);
+    luxChart.options.scales.y.min = 0;
     luxChart.options.scales.y.max = luxRange.max;
     luxChart.update();
 }
