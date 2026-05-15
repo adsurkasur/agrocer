@@ -3,19 +3,22 @@
 #include <DHT.h>
 #include <BH1750.h>
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 
 // =========================
 // WIFI
 // =========================
-const char* ssid = "Adsur B20";
-const char* password = "adsurananda";
+// WiFi choices (try in order; will pick a present SSID)
+const char* wifiSSIDs[] = {"Adsur B20", "ades24"};
+const char* wifiPasswords[] = {"adsurananda", "ngajioke"};
+const int wifiCount = sizeof(wifiSSIDs) / sizeof(wifiSSIDs[0]);
 
 // =========================
 // FLASK SERVER
 // =========================
 const char* serverURL =
-  "http://172.23.246.31:5000/api/sensor";
+  "https://agrocermut.adsurkasur.my.id/api/sensor";
 
 // =========================
 // DHT22
@@ -61,15 +64,54 @@ unsigned long lastWiFiRetry = 0;
 // =========================
 void connectWiFi() {
 
-  WiFi.begin(ssid, password);
+  // Ensure station mode and clear previous connections
+  WiFi.mode(WIFI_STA);
+  WiFi.disconnect(true);
+  delay(100);
 
-  Serial.print("Connecting WiFi");
+  // Scan for available networks and pick the first preferred SSID present
+  Serial.println("Scanning for WiFi networks...");
+  int n = WiFi.scanNetworks();
+  Serial.printf("Scan found %d networks\n", n);
+
+  int chosen = -1;
+
+  // Prefer the first configured SSID (index 0)
+  for (int i = 0; i < n; i++) {
+    if (WiFi.SSID(i) == String(wifiSSIDs[0])) {
+      chosen = 0;
+      break;
+    }
+  }
+
+  // If primary not found, search other configured SSIDs in order
+  if (chosen == -1) {
+    for (int j = 1; j < wifiCount; j++) {
+      for (int i = 0; i < n; i++) {
+        if (WiFi.SSID(i) == String(wifiSSIDs[j])) {
+          chosen = j;
+          break;
+        }
+      }
+      if (chosen != -1) break;
+    }
+  }
+
+  // Default to primary if none found
+  if (chosen == -1) chosen = 0;
+
+  Serial.print("Attempting WiFi SSID: '");
+  Serial.print(wifiSSIDs[chosen]);
+  Serial.println("'");
+
+  WiFi.begin(wifiSSIDs[chosen], wifiPasswords[chosen]);
 
   unsigned long wifiStart = millis();
 
+  // Give a bit more time for networks with spaces or slower AP responses
   while (
     WiFi.status() != WL_CONNECTED &&
-    millis() - wifiStart < 10000
+    millis() - wifiStart < 20000
   ) {
 
     delay(500);
@@ -90,37 +132,12 @@ void connectWiFi() {
 
     Serial.println("WiFi Failed");
     Serial.println("Running Offline Mode");
+
+    // Diagnostic: print scanned networks for debugging
+    for (int i = 0; i < n; i++) {
+      Serial.printf(" %d: %s (%d)\n", i + 1, WiFi.SSID(i).c_str(), WiFi.RSSI(i));
+    }
   }
-}
-
-// =========================
-// SETUP
-// =========================
-void setup() {
-
-  Serial.begin(115200);
-
-  // =========================
-  // WIFI
-  // =========================
-  connectWiFi();
-
-  // =========================
-  // I2C
-  // =========================
-  Wire.begin(21, 22);
-
-  // Lower I2C clock for stability
-  Wire.setClock(50000);
-
-  // =========================
-  // SENSOR
-  // =========================
-  dht.begin();
-
-  lightMeter.begin(
-    BH1750::CONTINUOUS_HIGH_RES_MODE
-  );
 
   // =========================
   // LCD
@@ -181,7 +198,7 @@ void loop() {
   // SENSOR READ
   // =========================
   if (
-    millis() - lastSensor >= 3000
+    millis() - lastSensor >= 1000
   ) {
 
     lastSensor = millis();
@@ -271,59 +288,74 @@ void loop() {
   delay(10);
 
   // =========================
-  // SEND TO FLASK
+  // SEND TO FLASK (HTTPS)
   // =========================
   if (
 
     WiFi.status() == WL_CONNECTED &&
 
-    millis() - lastHTTP >= 3000
+    millis() - lastHTTP >= 1000
 
   ) {
 
     lastHTTP = millis();
 
-    HTTPClient http;
+    Serial.print("WiFi status: ");
+    Serial.println(WiFi.status());
+    Serial.print("Local IP: ");
+    Serial.println(WiFi.localIP());
 
-    http.begin(serverURL);
-
-    http.addHeader(
-      "Content-Type",
-      "application/json"
-    );
-
+    // Build JSON payload
     String jsonData = "{";
-
-    jsonData +=
-      "\"temperature\":" +
-      String(suhu, 1) + ",";
-
-    jsonData +=
-      "\"humidity\":" +
-      String(hum, 1) + ",";
-
-    jsonData +=
-      "\"lux\":" +
-      String(lux, 1);
-
+    jsonData += "\"temperature\":" + String(suhu, 1) + ",";
+    jsonData += "\"humidity\":" + String(hum, 1) + ",";
+    jsonData += "\"lux\":" + String(lux, 1);
     jsonData += "}";
 
-    int httpResponseCode =
-      http.POST(jsonData);
+    // HTTPS via secure client (Cloudflare Tunnel)
+    WiFiClientSecure client;
+    client.setInsecure();
 
-    Serial.print("HTTP: ");
-    Serial.println(
-      httpResponseCode
-    );
+    HTTPClient http;
 
-    http.end();
+    Serial.print("Beginning HTTPS POST to: ");
+    Serial.println(serverURL);
+
+    if (!http.begin(client, serverURL)) {
+      Serial.println("HTTP.begin() failed for HTTPS URL");
+    } else {
+
+      http.addHeader("Content-Type", "application/json");
+
+      int httpResponseCode = http.POST(jsonData);
+
+      Serial.print("HTTPS response code: ");
+      Serial.println(httpResponseCode);
+
+      if (httpResponseCode > 0) {
+        String payload = http.getString();
+        if (payload.length() > 0) {
+          Serial.println("HTTPS response body:");
+          Serial.println(payload);
+        } else {
+          Serial.println("HTTPS response body: <empty>");
+        }
+      } else {
+        Serial.print("HTTPS POST failed, code: ");
+        Serial.println(httpResponseCode);
+        Serial.print("Error string: ");
+        Serial.println(http.errorToString(httpResponseCode));
+      }
+
+      http.end();
+    }
   }
 
   // =========================
   // LCD UPDATE
   // =========================
   if (
-    millis() - lastLCD >= 3000
+    millis() - lastLCD >= 1000
   ) {
 
     lastLCD = millis();
