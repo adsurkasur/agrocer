@@ -138,6 +138,34 @@ void connectWiFi() {
       Serial.printf(" %d: %s (%d)\n", i + 1, WiFi.SSID(i).c_str(), WiFi.RSSI(i));
     }
   }
+}
+
+// =========================
+// SETUP
+// =========================
+void setup() {
+
+  // Serial for diagnostics
+  Serial.begin(115200);
+
+  // =========================
+  // WIFI
+  // =========================
+  connectWiFi();
+
+  // =========================
+  // I2C
+  // =========================
+  Wire.begin(21, 22);
+  // Lower I2C clock for stability
+  Wire.setClock(50000);
+
+  // =========================
+  // SENSOR
+  // =========================
+  dht.begin();
+
+  lightMeter.begin(BH1750::CONTINUOUS_HIGH_RES_MODE);
 
   // =========================
   // LCD
