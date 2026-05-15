@@ -260,6 +260,14 @@
 
         <button
             class="danger-button"
+            onclick="exportDatabase()">
+
+            Export to XLSX
+
+        </button>
+
+        <button
+            class="danger-button"
             onclick="clearDatabase()">
 
             Clear Database
@@ -655,6 +663,11 @@
         // =========================
         // CLEAR DATABASE
         // =========================
+
+        function exportDatabase() {
+
+            window.location.href = '/api/export/xlsx';
+        }
 
         async function clearDatabase() {
 

@@ -1,4 +1,5 @@
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, send_file
+from io import BytesIO
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
@@ -8,6 +9,8 @@ import math
 import os
 import platform
 import sys
+
+from openpyxl import Workbook
 
 app = Flask(__name__)
 
@@ -438,6 +441,51 @@ def clear_database():
         "status": "success",
         "message": "Database cleared"
     })
+
+
+# =========================
+# EXPORT DATABASE
+# =========================
+@app.route('/api/export/xlsx')
+def export_database_xlsx():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT id, timestamp, temperature, humidity, lux
+        FROM sensor_data
+        ORDER BY id ASC
+        """
+    )
+    rows = cursor.fetchall()
+    conn.close()
+
+    workbook = Workbook()
+    worksheet = workbook.active
+    worksheet.title = "Sensor Data"
+    worksheet.append(["ID", "Timestamp", "Temperature", "Humidity", "Lux"])
+
+    for row in rows:
+        worksheet.append([
+            row[0],
+            row[1],
+            row[2],
+            row[3],
+            row[4],
+        ])
+
+    buffer = BytesIO()
+    workbook.save(buffer)
+    buffer.seek(0)
+
+    filename = f"sensor_data_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.xlsx"
+
+    return send_file(
+        buffer,
+        as_attachment=True,
+        download_name=filename,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
 
 
 # =========================
