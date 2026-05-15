@@ -236,7 +236,7 @@ function updateCharts(fullData) {
     const humRange = getAdaptiveRange(humValues, 5);
     humChart.data.labels = labels;
     humChart.data.datasets[0].data = humValues;
-    humChart.options.scales.y.min = humRange.min;
+    humChart.options.scales.y.min = 0;
     humChart.options.scales.y.max = humRange.max;
     humChart.update();
 
