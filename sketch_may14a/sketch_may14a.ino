@@ -8,8 +8,8 @@
 // =========================
 // WIFI
 // =========================
-const char* ssid = "ades24";
-const char* password = "ngajioke";
+const char* ssid = "Adsur B20";
+const char* password = "adsurananda";
 
 // =========================
 // FLASK SERVER
