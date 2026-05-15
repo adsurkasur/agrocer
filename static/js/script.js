@@ -61,7 +61,7 @@ function getAdaptiveRange(values, padding = 5) {
     };
 }
 
-function createChart(elementId, label, borderColor, backgroundColor) {
+function createChart(elementId, label, borderColor, backgroundColor, beginAtZero = false) {
     const ctx = document.getElementById(elementId);
     if (!ctx) return null;
 
@@ -97,7 +97,7 @@ function createChart(elementId, label, borderColor, backgroundColor) {
                     ticks: { font: { family: 'Inter', size: 11 } }
                 },
                 y: {
-                    beginAtZero: false,
+                    beginAtZero: beginAtZero,
                     grid: { color: 'rgba(0,0,0,0.05)' },
                     ticks: { font: { family: 'Inter', size: 11 } }
                 }
@@ -107,9 +107,9 @@ function createChart(elementId, label, borderColor, backgroundColor) {
 }
 
 function initCharts() {
-    tempChart = createChart('tempChart', 'Temperature (°C)', '#3b82f6', 'rgba(59, 130, 246, 0.1)');
-    humChart = createChart('humChart', 'Humidity (%)', '#10b981', 'rgba(16, 185, 129, 0.1)');
-    luxChart = createChart('luxChart', 'Lux (lx)', '#f59e0b', 'rgba(245, 158, 11, 0.1)');
+    tempChart = createChart('tempChart', 'Temperature (°C)', '#3b82f6', 'rgba(59, 130, 246, 0.1)', false);
+    humChart = createChart('humChart', 'Humidity (%)', '#10b981', 'rgba(16, 185, 129, 0.1)', true);
+    luxChart = createChart('luxChart', 'Lux (lx)', '#f59e0b', 'rgba(245, 158, 11, 0.1)', true);
 }
 
 // =========================
