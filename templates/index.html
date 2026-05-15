@@ -1,1051 +1,134 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-
     <meta charset="UTF-8">
-
-    <link
-        rel="icon"
-        href="data:,">
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="data:,">
     <title>Smart Farming Dashboard</title>
-
+    
+    <!-- External Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-    <style>
-
-        * {
-            box-sizing: border-box;
-        }
-
-        body {
-
-            font-family: Arial, sans-serif;
-            margin: 20px;
-            background: #f4f4f4;
-            color: #222;
-        }
-
-        h1 {
-
-            margin-bottom: 5px;
-        }
-
-        #liveTime {
-
-            color: #666;
-            margin-bottom: 10px;
-        }
-
-        #locationInfo {
-
-            margin-bottom: 20px;
-
-            padding: 12px 16px;
-
-            background: white;
-
-            border-radius: 10px;
-
-            box-shadow:
-                0 2px 8px rgba(0,0,0,0.08);
-
-            color: #444;
-
-            font-size: 14px;
-        }
-
-        /* =========================
-           BUTTON
-        ========================= */
-
-        .top-actions {
-
-            margin-bottom: 20px;
-        }
-
-        .danger-button {
-
-            padding: 10px 18px;
-
-            border: none;
-
-            border-radius: 8px;
-
-            background: #ff4d4d;
-
-            color: white;
-
-            cursor: pointer;
-
-            font-weight: bold;
-        }
-
-        .danger-button:hover {
-
-            opacity: 0.9;
-        }
-
-        /* =========================
-           STATUS GRID
-        ========================= */
-
-        .status-grid {
-
-            display: grid;
-
-            grid-template-columns:
-                repeat(auto-fit, minmax(260px, 1fr));
-
-            gap: 20px;
-
-            margin-bottom: 30px;
-
-            align-items: stretch;
-        }
-
-        .status-card {
-
-            background: white;
-
-            border-radius: 12px;
-
-            padding: 20px;
-
-            min-height: 180px;
-
-            box-shadow:
-                0 2px 8px rgba(0,0,0,0.08);
-
-            display: flex;
-
-            flex-direction: column;
-        }
-
-        .status-title {
-
-            font-size: 14px;
-
-            color: #666;
-
-            margin-bottom: 8px;
-        }
-
-        .status-value {
-
-            font-size: 24px;
-
-            font-weight: bold;
-
-            margin-bottom: 8px;
-        }
-
-        .status-desc {
-
-            font-size: 13px;
-
-            line-height: 1.5;
-
-            color: #555;
-        }
-
-        /* =========================
-           CHART GRID
-        ========================= */
-
-        .chart-grid {
-
-            display: grid;
-
-            grid-template-columns:
-                repeat(auto-fit, minmax(420px, 1fr));
-
-            gap: 25px;
-
-            margin-bottom: 30px;
-        }
-
-        .chart-card {
-
-            background: white;
-
-            border-radius: 12px;
-
-            padding: 25px;
-
-            min-height: 360px;
-
-            box-shadow:
-                0 2px 8px rgba(0,0,0,0.08);
-        }
-
-        .chart-title {
-
-            margin-bottom: 15px;
-
-            font-size: 18px;
-        }
-
-        canvas {
-
-            max-height: 250px;
-        }
-
-        /* =========================
-           TABLE
-        ========================= */
-
-        .table-card {
-
-            background: white;
-
-            border-radius: 12px;
-
-            padding: 20px;
-
-            box-shadow:
-                0 2px 8px rgba(0,0,0,0.08);
-
-            overflow-x: auto;
-        }
-
-        table {
-
-            width: 100%;
-
-            border-collapse: collapse;
-        }
-
-        th, td {
-
-            border: 1px solid #ddd;
-
-            padding: 10px;
-
-            text-align: center;
-        }
-
-        th {
-
-            background: #f0f0f0;
-        }
-
-        tbody tr:nth-child(even) {
-
-            background: #fafafa;
-        }
-
-    </style>
-
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
-
 <body>
-
-    <h1>Smart Farming Dashboard</h1>
-
-    <div id="liveTime"></div>
-
-    <div id="locationInfo">
-
-        Detecting location...
-
-    </div>
-
-    <!-- =========================
-         ACTIONS
-    ========================= -->
-
-    <div class="top-actions">
-
-        <button
-            class="danger-button"
-            onclick="exportDatabase()">
-
-            Export to XLSX
-
-        </button>
-
-        <button
-            class="danger-button"
-            onclick="clearDatabase()">
-
-            Clear Database
-
-        </button>
-
-    </div>
-
-    <!-- =========================
-         STATUS SECTION
-    ========================= -->
-
-    <div class="status-grid">
-
-        <!-- ENVIRONMENT -->
-        <div class="status-card">
-
-            <div class="status-title">
-                Environment Status
+    <div class="container">
+        <header>
+            <h1>Smart Farming Dashboard</h1>
+            <div id="liveTime"><i class="far fa-clock"></i> --:--:--</div>
+            <div id="locationInfo">
+                <i class="fas fa-location-dot" style="margin-right: 0.5rem;"></i> Detecting location...
             </div>
+        </header>
 
-            <div
-                class="status-value"
-                id="envStatus">
-
-                ---
-            </div>
-
-            <div
-                class="status-desc"
-                id="envDesc">
-
-                Waiting for sensor data...
-            </div>
-
+        <!-- ACTIONS -->
+        <div class="top-actions">
+            <button class="btn btn-primary" onclick="exportDatabase()">
+                <i class="fas fa-file-excel"></i> Export to XLSX
+            </button>
+            <button class="btn btn-danger" onclick="clearDatabase()">
+                <i class="fas fa-trash-can"></i> Clear Database
+            </button>
         </div>
 
-        <!-- LIGHT -->
-        <div class="status-card">
-
-            <div class="status-title">
-                Light Condition
+        <!-- STATUS SECTION -->
+        <div class="status-grid">
+            <!-- ENVIRONMENT -->
+            <div class="status-card">
+                <div class="status-title">
+                    Environment Status
+                    <i class="fas fa-seedling text-primary"></i>
+                </div>
+                <div class="status-value" id="envStatus">---</div>
+                <div class="status-desc" id="envDesc">Waiting for sensor data...</div>
             </div>
 
-            <div
-                class="status-value"
-                id="lightStatus">
-
-                ---
+            <!-- LIGHT -->
+            <div class="status-card">
+                <div class="status-title">
+                    Light Condition
+                    <i class="fas fa-sun text-accent"></i>
+                </div>
+                <div class="status-value" id="lightStatus">---</div>
+                <div class="status-desc" id="lightDesc">Waiting for sensor data...</div>
             </div>
 
-            <div
-                class="status-desc"
-                id="lightDesc">
-
-                Waiting for sensor data...
+            <!-- FAN -->
+            <div class="status-card">
+                <div class="status-title">
+                    Fan Status
+                    <i class="fas fa-fan"></i>
+                </div>
+                <div class="status-value" id="fanStatus">---</div>
+                <div class="status-desc" id="fanDesc">Waiting for sensor data...</div>
             </div>
 
+            <!-- PUMP -->
+            <div class="status-card">
+                <div class="status-title">
+                    Pump Status
+                    <i class="fas fa-droplet"></i>
+                </div>
+                <div class="status-value" id="pumpStatus">---</div>
+                <div class="status-desc" id="pumpDesc">Waiting for sensor data...</div>
+            </div>
+
+            <!-- WEATHER -->
+            <div class="status-card">
+                <div class="status-title">
+                    Outside Weather
+                    <i class="fas fa-cloud-sun"></i>
+                </div>
+                <div class="status-value" id="weatherStatus">---</div>
+                <div class="status-desc" id="weatherDesc">Waiting for weather data...</div>
+            </div>
         </div>
 
-        <!-- FAN -->
-        <div class="status-card">
-
-            <div class="status-title">
-                Fan Status
+        <!-- CHARTS -->
+        <div class="chart-grid">
+            <div class="chart-card">
+                <div class="chart-title"><i class="fas fa-temperature-half"></i> Temperature</div>
+                <div style="height: 250px;">
+                    <canvas id="tempChart"></canvas>
+                </div>
             </div>
-
-            <div
-                class="status-value"
-                id="fanStatus">
-
-                ---
+            <div class="chart-card">
+                <div class="chart-title"><i class="fas fa-droplet"></i> Humidity</div>
+                <div style="height: 250px;">
+                    <canvas id="humChart"></canvas>
+                </div>
             </div>
-
-            <div
-                class="status-desc"
-                id="fanDesc">
-
-                Waiting for sensor data...
+            <div class="chart-card">
+                <div class="chart-title"><i class="fas fa-bolt"></i> Light Intensity</div>
+                <div style="height: 250px;">
+                    <canvas id="luxChart"></canvas>
+                </div>
             </div>
-
         </div>
 
-        <!-- PUMP -->
-        <div class="status-card">
-
-            <div class="status-title">
-                Pump Status
-            </div>
-
-            <div
-                class="status-value"
-                id="pumpStatus">
-
-                ---
-            </div>
-
-            <div
-                class="status-desc"
-                id="pumpDesc">
-
-                Waiting for sensor data...
-            </div>
-
-        </div>
-
-        <!-- WEATHER -->
-        <div class="status-card">
-
-            <div class="status-title">
-                Outside Weather
-            </div>
-
-            <div
-                class="status-value"
-                id="weatherStatus">
-
-                ---
-            </div>
-
-            <div
-                class="status-desc"
-                id="weatherDesc">
-
-                Waiting for weather data...
-            </div>
-
-        </div>
-
-    </div>
-
-    <!-- =========================
-         CHARTS
-    ========================= -->
-
-    <div class="chart-grid">
-
-        <!-- TEMPERATURE -->
-        <div class="chart-card">
-
-            <div class="chart-title">
-                Temperature
-            </div>
-
-            <canvas id="tempChart"></canvas>
-
-        </div>
-
-        <!-- HUMIDITY -->
-        <div class="chart-card">
-
-            <div class="chart-title">
-                Humidity
-            </div>
-
-            <canvas id="humChart"></canvas>
-
-        </div>
-
-        <!-- LUX -->
-        <div class="chart-card">
-
-            <div class="chart-title">
-                Light Intensity
-            </div>
-
-            <canvas id="luxChart"></canvas>
-
-        </div>
-
-    </div>
-
-    <!-- =========================
-         TABLE
-    ========================= -->
-
-    <div class="table-card">
-
-        <table>
-
-            <thead>
-
-                <tr>
-
-                    <th>No</th>
-                    <th>Timestamp</th>
-                    <th>Temp (°C)</th>
-                    <th>Humidity (%)</th>
-                    <th>Lux (lx)</th>
-
-                </tr>
-
-            </thead>
-
-            <tbody id="tableBody">
-
-            </tbody>
-
-        </table>
-
-    </div>
-
-    <script>
-
-        // =========================
-        // DEFAULT LOCATION
-        // =========================
-
-        let currentLat = -7.956;
-        let currentLon = 112.6159;
-
-        // =========================
-        // LOCATION MESSAGE
-        // =========================
-
-        let locationMessage =
-            "Using your current GPS location.";
-
-        // =========================
-        // GET LOCATION
-        // =========================
-
-        function getLocation() {
-
-            if (!navigator.geolocation) {
-
-                document.getElementById(
-                    "locationInfo"
-                ).innerText =
-
-                    "Geolocation unsupported. " +
-
-                    "Defaulting to Universitas Brawijaya " +
-
-                    "(-7.956, 112.6159).";
-
-                return;
-            }
-
-            navigator.geolocation.getCurrentPosition(
-
-                position => {
-
-                    currentLat =
-                        position.coords.latitude;
-
-                    currentLon =
-                        position.coords.longitude;
-
-                    locationMessage =
-                        "Using your current GPS location.";
-
-                    document.getElementById(
-                        "locationInfo"
-                    ).innerText =
-                        locationMessage;
-                },
-
-                error => {
-
-                    console.log(
-                        "Location error:",
-                        error
-                    );
-
-                    locationMessage =
-
-                        "Location access denied. " +
-
-                        "Defaulting to Universitas Brawijaya " +
-
-                        "(-7.956, 112.6159) for weather data.";
-
-                    document.getElementById(
-                        "locationInfo"
-                    ).innerText =
-                        locationMessage;
-                }
-            );
-        }
-
-        getLocation();
-
-        // =========================
-        // ADAPTIVE AXIS
-        // =========================
-
-        function getAdaptiveRange(values, padding = 5) {
-
-            const min =
-                Math.min(...values);
-
-            const max =
-                Math.max(...values);
-
-            return {
-
-                min: Math.floor(min - padding),
-
-                max: Math.ceil(max + padding)
-            };
-        }
-
-        // =========================
-        // CHART FACTORY
-        // =========================
-
-        function createChart(
-            elementId,
-            label,
-            borderColor,
-            backgroundColor
-        ) {
-
-            return new Chart(
-
-                document.getElementById(elementId),
-
-                {
-
-                    type: 'line',
-
-                    data: {
-
-                        labels: [],
-
-                        datasets: [
-
-                            {
-                                label: label,
-
-                                data: [],
-
-                                tension: 0.3,
-
-                                borderColor:
-                                    borderColor,
-
-                                backgroundColor:
-                                    backgroundColor,
-
-                                fill: 'start'
-                            }
-                        ]
-                    },
-
-                    options: {
-
-                        responsive: true,
-
-                        animation: false,
-
-                        scales: {
-
-                            y: {
-
-                                beginAtZero: false
-                            }
-                        }
-                    }
-                }
-            );
-        }
-
-        // =========================
-        // CHARTS
-        // =========================
-
-        const tempChart =
-            createChart(
-                'tempChart',
-                'Temperature (°C)',
-                '#36A2EB',
-                'rgba(54,162,235,0.2)'
-            );
-
-        const humChart =
-            createChart(
-                'humChart',
-                'Humidity (%)',
-                '#FF6384',
-                'rgba(255,99,132,0.2)'
-            );
-
-        const luxChart =
-            createChart(
-                'luxChart',
-                'Lux (lx)',
-                '#FF9F40',
-                'rgba(255,159,64,0.2)'
-            );
-
-        // =========================
-        // CLEAR DATABASE
-        // =========================
-
-        function exportDatabase() {
-
-            window.location.href = '/api/export/xlsx';
-        }
-
-        async function clearDatabase() {
-
-            const confirmClear = confirm(
-                "Are you sure you want to clear all sensor data?"
-            );
-
-            if (!confirmClear) {
-                return;
-            }
-
-            const response = await fetch(
-                '/api/clear',
-                {
-                    method: 'POST'
-                }
-            );
-
-            const result =
-                await response.json();
-
-            alert(result.message);
-
-            updateDashboard();
-        }
-
-        // =========================
-        // DESCRIPTION
-        // =========================
-
-        function getEnvironmentDescription(status) {
-
-            if (
-                status ===
-                "OPTIMAL FOR TOMATO"
-            ) {
-
-                return "Environmental conditions are ideal for tomato cultivation.";
-            }
-
-            if (
-                status ===
-                "FUNGAL RISK"
-            ) {
-
-                return "High humidity and temperature increase fungal disease risk.";
-            }
-
-            if (
-                status ===
-                "HEAT STRESS"
-            ) {
-
-                return "Extreme heat may damage tomato growth and fruit development.";
-            }
-
-            if (
-                status ===
-                "WATER STRESS"
-            ) {
-
-                return "Humidity is too low and may increase water stress.";
-            }
-
-            return "Conditions are acceptable but not fully optimal.";
-        }
-
-        function getLightDescription(status) {
-
-            if (
-                status ===
-                "VERY LOW LIGHT"
-            ) {
-
-                return "Light intensity is critically low for tomato growth.";
-            }
-
-            if (
-                status ===
-                "LOW LIGHT"
-            ) {
-
-                return "Cloudy or shaded condition detected.";
-            }
-
-            if (
-                status ===
-                "MODERATE LIGHT"
-            ) {
-
-                return "Moderate lighting condition detected.";
-            }
-
-            if (
-                status ===
-                "GOOD SUNLIGHT"
-            ) {
-
-                return "Lighting is suitable for photosynthesis.";
-            }
-
-            return "Very intense sunlight detected.";
-        }
-
-        // =========================
-        // UPDATE DASHBOARD
-        // =========================
-
-        async function updateDashboard() {
-
-            const response =
-                await fetch('/api/latest');
-
-            const data =
-                await response.json();
-
-            const weatherResponse =
-                await fetch(
-
-                    `/api/weather?lat=${currentLat}&lon=${currentLon}`
-
-                );
-
-            const weather =
-                await weatherResponse.json();
-
-            if (data.length === 0) {
-                return;
-            }
-
-            const latest =
-                data[data.length - 1];
-
-            // =========================
-            // STATUS
-            // =========================
-
-            document.getElementById(
-                "envStatus"
-            ).innerText =
-                latest.environment_status;
-
-            document.getElementById(
-                "lightStatus"
-            ).innerText =
-                latest.light_status;
-
-            document.getElementById(
-                "fanStatus"
-            ).innerText =
-                latest.fan_status;
-
-            document.getElementById(
-                "pumpStatus"
-            ).innerText =
-                latest.pump_status;
-
-            document.getElementById(
-                "weatherStatus"
-            ).innerText =
-                weather.weather;
-
-            // =========================
-            // DESCRIPTION
-            // =========================
-
-            document.getElementById(
-                "envDesc"
-            ).innerText =
-                getEnvironmentDescription(
-                    latest.environment_status
-                );
-
-            document.getElementById(
-                "lightDesc"
-            ).innerText =
-                getLightDescription(
-                    latest.light_status
-                );
-
-            document.getElementById(
-                "fanDesc"
-            ).innerText =
-
-                latest.fan_status === "ON"
-
-                ? "Cooling system is actively reducing greenhouse temperature."
-
-                : "Cooling system is inactive.";
-
-            document.getElementById(
-                "pumpDesc"
-            ).innerText =
-
-                latest.pump_status === "ON"
-
-                ? "Irrigation system is supplying water."
-
-                : "Irrigation system is inactive.";
-
-            document.getElementById(
-                "weatherDesc"
-            ).innerText =
-
-                "Outside Temp: " +
-
-                weather.temperature +
-
-                "°C | Humidity: " +
-
-                weather.humidity +
-
-                "%";
-
-            // =========================
-            // TABLE
-            // =========================
-
-            const tableBody =
-                document.getElementById(
-                    "tableBody"
-                );
-
-            tableBody.innerHTML = "";
-
-            [...data]
-                .reverse()
-                .forEach(row => {
-
-                    tableBody.innerHTML += `
-
+        <!-- TABLE -->
+        <div class="table-card">
+            <div class="chart-title" style="margin-bottom: 1rem;"><i class="fas fa-table"></i> Historical Data</div>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
                         <tr>
-
-                            <td>${row.id}</td>
-
-                            <td>${row.timestamp}</td>
-
-                            <td>${row.temperature}</td>
-
-                            <td>${row.humidity}</td>
-
-                            <td>${row.lux}</td>
-
+                            <th>No</th>
+                            <th>Timestamp</th>
+                            <th>Temp (°C)</th>
+                            <th>Humidity (%)</th>
+                            <th>Lux (lx)</th>
                         </tr>
-                    `;
-                });
+                    </thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 
-            // =========================
-            // LABELS
-            // =========================
-
-            const labels =
-                data.map(row =>
-                    row.timestamp.split(" ")[1]
-                );
-
-            // =========================
-            // TEMP
-            // =========================
-
-            const tempValues =
-                data.map(row =>
-                    row.temperature
-                );
-
-            const tempRange =
-                getAdaptiveRange(
-                    tempValues,
-                    2
-                );
-
-            tempChart.data.labels =
-                labels;
-
-            tempChart.data.datasets[0].data =
-                tempValues;
-
-            tempChart.options.scales.y.min =
-                tempRange.min;
-
-            tempChart.options.scales.y.max =
-                tempRange.max;
-
-            tempChart.update();
-
-            // =========================
-            // HUM
-            // =========================
-
-            const humValues =
-                data.map(row =>
-                    row.humidity
-                );
-
-            const humRange =
-                getAdaptiveRange(
-                    humValues,
-                    5
-                );
-
-            humChart.data.labels =
-                labels;
-
-            humChart.data.datasets[0].data =
-                humValues;
-
-            humChart.options.scales.y.min =
-                humRange.min;
-
-            humChart.options.scales.y.max =
-                humRange.max;
-
-            humChart.update();
-
-            // =========================
-            // LUX
-            // =========================
-
-            const luxValues =
-                data.map(row =>
-                    row.lux
-                );
-
-            const luxRange =
-                getAdaptiveRange(
-                    luxValues,
-                    10
-                );
-
-            luxChart.data.labels =
-                labels;
-
-            luxChart.data.datasets[0].data =
-                luxValues;
-
-            luxChart.options.scales.y.min =
-                luxRange.min;
-
-            luxChart.options.scales.y.max =
-                luxRange.max;
-
-            luxChart.update();
-        }
-
-        // =========================
-        // INITIAL LOAD
-        // =========================
-
-        updateDashboard();
-
-        // =========================
-        // REALTIME UPDATE
-        // =========================
-
-        setInterval(
-            updateDashboard,
-            1000
-        );
-
-        // =========================
-        // LIVE CLOCK
-        // =========================
-
-        setInterval(() => {
-
-            const now = new Date();
-
-            document.getElementById(
-                "liveTime"
-            ).innerText =
-
-                "Live Time: " +
-
-                now.toLocaleTimeString();
-
-        }, 1000);
-
-    </script>
-
+    <!-- Custom Script -->
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
 </html>

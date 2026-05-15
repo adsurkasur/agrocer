@@ -29,7 +29,7 @@ def parse_bool_env(val, default=False):
 HOST = os.getenv("HOST", "0.0.0.0")
 PORT = int(os.getenv("PORT", os.getenv("FLASK_RUN_PORT", "5000")))
 DEBUG = parse_bool_env(os.getenv("DEBUG"), False)
-MAX_DATA_POINTS = int(os.getenv("MAX_DATA_POINTS", "30"))
+MAX_DATA_POINTS = int(os.getenv("MAX_DATA_POINTS", "1000"))
 DEFAULT_LAT = float(os.getenv("DEFAULT_LAT", "-7.956"))
 DEFAULT_LON = float(os.getenv("DEFAULT_LON", "112.6159"))
 
@@ -98,7 +98,7 @@ def query_db(query, args=(), one=False):
 # =========================
 def insert_sensor_data(temp, hum, lux, timestamp=None):
     """Insert a sensor row. Timestamp is ISO8601 UTC if not provided."""
-    ts = timestamp or datetime.now(timezone.utc).isoformat()
+    ts = timestamp or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute(
@@ -407,7 +407,7 @@ def api_system():
         total_rows = get_total_rows()
         latest_sensor_timestamp = get_latest_timestamp()
         database_size = get_database_size()
-        server_time = datetime.now(timezone.utc).isoformat()
+        server_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         return jsonify({
             "total_rows": total_rows,
             "latest_sensor_timestamp": latest_sensor_timestamp,
