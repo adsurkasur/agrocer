@@ -75,7 +75,7 @@ function createChart(elementId, label, borderColor, backgroundColor) {
                 tension: 0.4,
                 borderColor: borderColor,
                 backgroundColor: backgroundColor,
-                fill: true,
+                fill: 'start',
                 pointRadius: 4,
                 pointBackgroundColor: borderColor,
                 pointBorderColor: '#fff',
