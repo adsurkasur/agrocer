@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initCharts();
     getLocation();
     updateDashboard();
-    
+
     // Refresh intervals
     setInterval(updateDashboard, 5000); // Updated to 5s to be less aggressive but still real-time
     setInterval(updateLiveClock, 1000);
@@ -183,11 +183,11 @@ async function updateDashboard() {
         // Update Descriptions
         document.getElementById("envDesc").innerText = getEnvironmentDescription(latest.environment_status);
         document.getElementById("lightDesc").innerText = getLightDescription(latest.light_status);
-        document.getElementById("fanDesc").innerText = latest.fan_status === "ON" 
-            ? "Cooling system is actively reducing greenhouse temperature." 
+        document.getElementById("fanDesc").innerText = latest.fan_status === "ON"
+            ? "Cooling system is actively reducing greenhouse temperature."
             : "Cooling system is inactive.";
-        document.getElementById("pumpDesc").innerText = latest.pump_status === "ON" 
-            ? "Irrigation system is supplying water." 
+        document.getElementById("pumpDesc").innerText = latest.pump_status === "ON"
+            ? "Irrigation system is supplying water."
             : "Irrigation system is inactive.";
         document.getElementById("weatherDesc").innerText = `Outside: ${weather.temperature}°C | Humidity: ${weather.humidity}%`;
 
@@ -205,7 +205,7 @@ async function updateDashboard() {
 function updateTable(data) {
     const tableBody = document.getElementById("tableBody");
     if (!tableBody) return;
-    
+
     tableBody.innerHTML = [...data].reverse().map(row => `
         <tr>
             <td>${row.id}</td>
@@ -221,7 +221,7 @@ function updateCharts(fullData) {
     // Keep charts readable by showing only the last 30 points
     const data = fullData.slice(-30);
     const labels = data.map(row => row.timestamp.split(" ")[1]);
-    
+
     // Temp Chart
     const tempValues = data.map(row => row.temperature);
     const tempRange = getAdaptiveRange(tempValues, 2);
@@ -245,7 +245,7 @@ function updateCharts(fullData) {
     const luxRange = getAdaptiveRange(luxValues, 10);
     luxChart.data.labels = labels;
     luxChart.data.datasets[0].data = luxValues;
-    luxChart.options.scales.y.min = luxRange.min;
+    luxChart.options.scales.y.min = Math.max(0, luxRange.min);
     luxChart.options.scales.y.max = luxRange.max;
     luxChart.update();
 }
