@@ -15,23 +15,27 @@
 </head>
 <body>
     <div class="container">
-        <header>
-            <h1>Smart Farming Dashboard</h1>
-            <div id="liveTime"><i class="far fa-clock"></i> --:--:--</div>
-            <div id="locationInfo">
-                <i class="fas fa-location-dot" style="margin-right: 0.5rem;"></i> Detecting location...
+        <header class="main-header">
+            <div class="header-left">
+                <h1>Smart Farming Dashboard</h1>
+                <div id="liveTime"><i class="far fa-clock"></i> --:--:--</div>
+            </div>
+            
+            <div class="header-right">
+                <div id="locationInfo">
+                    <i class="fas fa-location-dot"></i>
+                    <span>Detecting location...</span>
+                </div>
+                <div class="top-actions">
+                    <button class="btn btn-primary" onclick="exportDatabase()">
+                        <i class="fas fa-file-excel"></i> Export to XLSX
+                    </button>
+                    <button class="btn btn-danger" onclick="clearDatabase()">
+                        <i class="fas fa-trash-can"></i> Clear Database
+                    </button>
+                </div>
             </div>
         </header>
-
-        <!-- ACTIONS -->
-        <div class="top-actions">
-            <button class="btn btn-primary" onclick="exportDatabase()">
-                <i class="fas fa-file-excel"></i> Export to XLSX
-            </button>
-            <button class="btn btn-danger" onclick="clearDatabase()">
-                <i class="fas fa-trash-can"></i> Clear Database
-            </button>
-        </div>
 
         <!-- STATUS SECTION -->
         <div class="status-grid">

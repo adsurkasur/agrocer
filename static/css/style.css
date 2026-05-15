@@ -38,9 +38,26 @@ body {
     padding: 0 2rem;
 }
 
-header {
+.main-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
     margin-bottom: 2.5rem;
+    gap: 2rem;
+    flex-wrap: wrap;
     animation: fadeInDown 0.8s ease-out;
+}
+
+.header-left {
+    flex: 1;
+    min-width: 300px;
+}
+
+.header-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 1rem;
 }
 
 h1 {
@@ -61,17 +78,27 @@ h1 {
 }
 
 #locationInfo {
-    margin-top: 1rem;
-    padding: 0.75rem 1rem;
+    padding: 0.5rem 1rem;
     background: var(--card-bg);
     border: 1px solid var(--glass-border);
-    border-radius: 12px;
+    border-radius: 100px; /* Pill style */
     box-shadow: var(--shadow);
     color: var(--text-muted);
-    font-size: 0.875rem;
+    font-size: 0.8125rem;
     display: inline-flex;
     align-items: center;
+    gap: 0.5rem;
     backdrop-filter: blur(8px);
+}
+
+#locationInfo::before {
+    content: '';
+    display: block;
+    width: 8px;
+    height: 8px;
+    background: var(--primary);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
 }
 
 /* =========================
@@ -79,9 +106,7 @@ h1 {
 ========================= */
 .top-actions {
     display: flex;
-    gap: 1rem;
-    margin-bottom: 2.5rem;
-    animation: fadeInUp 0.8s ease-out 0.2s both;
+    gap: 0.75rem;
 }
 
 .btn {
@@ -289,9 +314,19 @@ tbody tr:hover {
     to { opacity: 1; transform: scale(1); }
 }
 
+@keyframes pulse {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.7); }
+    70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(46, 204, 113, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); }
+}
+
 /* RESPONSIVE */
 @media (max-width: 640px) {
     body { padding: 1rem; }
+    .main-header { flex-direction: column; align-items: flex-start; gap: 1.5rem; }
+    .header-right { align-items: flex-start; width: 100%; }
+    .top-actions { width: 100%; justify-content: space-between; }
+    .btn { flex: 1; justify-content: center; }
     h1 { font-size: 1.75rem; }
     .status-grid { grid-template-columns: 1fr; }
     .chart-grid { grid-template-columns: 1fr; }
