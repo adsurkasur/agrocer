@@ -17,6 +17,18 @@ let thresholds = {
 };
 
 // =========================
+// UTILS & VALIDATION
+// =========================
+function isValidNumber(v) {
+    return typeof v === 'number' && !isNaN(v) && isFinite(v);
+}
+
+function sanitizeValue(v, fallback) {
+    const n = parseFloat(v);
+    return isValidNumber(n) ? n : fallback;
+}
+
+// =========================
 // INITIALIZATION
 // =========================
 document.addEventListener('DOMContentLoaded', () => {
@@ -26,9 +38,9 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchThresholds();
 
     // Refresh intervals
-    setInterval(updateDashboard, 3000); 
+    setInterval(updateDashboard, 1000); 
     setInterval(updateLiveClock, 1000);
-    setInterval(fetchThresholds, 10000); // Thresholds don't change often
+    setInterval(fetchThresholds, 5000); // Increased slightly from 1s to be reasonable
 });
 
 // =========================
@@ -185,10 +197,18 @@ function exportDatabase() {
 async function fetchThresholds() {
     try {
         const res = await fetch('/api/thresholds');
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         const data = await res.json();
-        thresholds = { ...thresholds, ...data };
+        
+        // Defensive merge: only accept valid numbers
+        if (data) {
+            thresholds.fan_on_temp = sanitizeValue(data.fan_on_temp, thresholds.fan_on_temp);
+            thresholds.fan_off_temp = sanitizeValue(data.fan_off_temp, thresholds.fan_off_temp);
+            thresholds.pump_on_humidity = sanitizeValue(data.pump_on_humidity, thresholds.pump_on_humidity);
+            thresholds.pump_off_humidity = sanitizeValue(data.pump_off_humidity, thresholds.pump_off_humidity);
+        }
     } catch (e) {
-        console.error("Failed to fetch thresholds:", e);
+        console.warn("Threshold fetch failed, using fallbacks:", e);
     }
 }
 
@@ -293,10 +313,15 @@ function updateLogTable(logs) {
     const logBody = document.getElementById("logTableBody");
     if (!logBody) return;
 
+    if (!logs || logs.length === 0) {
+        logBody.innerHTML = '<tr><td colspan="4" style="text-align:center; color: var(--text-muted);">No activation events yet</td></tr>';
+        return;
+    }
+
     logBody.innerHTML = logs.map(log => `
         <tr>
-            <td>${log.timestamp.split(" ")[1]}</td>
-            <td><span class="badge actuator-${log.actuator_name.toLowerCase()}">${log.actuator_name}</span></td>
+            <td>${log.timestamp ? log.timestamp.split(" ")[1] : '---'}</td>
+            <td><span class="badge actuator-${String(log.actuator_name).toLowerCase()}">${log.actuator_name}</span></td>
             <td>${log.previous_state == 1 ? 'ON' : 'OFF'} <i class="fas fa-arrow-right"></i> ${log.new_state == 1 ? 'ON' : 'OFF'}</td>
             <td>${log.trigger_value} (${log.trigger_type})</td>
         </tr>
@@ -321,16 +346,19 @@ function updateCharts(fullData) {
     const labels = data.map(row => row.timestamp.split(" ")[1]);
 
     // Temp Chart
-    const tempValues = data.map(row => row.temperature);
+    const tempValues = data.map(row => sanitizeValue(row.temperature, 0));
     const tempRange = getAdaptiveRange(tempValues, 5);
     
+    // Diagnostic
+    console.log(`[DIAG] Temp: points=${tempValues.length}, range=[${tempRange.min}, ${tempRange.max}], thresholds=[${thresholds.fan_on_temp}, ${thresholds.fan_off_temp}]`);
+
     // Detect Fan Events in current window
     const fanEvents = [];
     for (let i = 1; i < data.length; i++) {
         if (data[i].fan_status !== data[i-1].fan_status) {
             fanEvents.push({
                 x: data[i].timestamp.split(" ")[1],
-                y: data[i].temperature,
+                y: sanitizeValue(data[i].temperature, 0),
                 prev: data[i-1].fan_status == 1 ? 'ON' : 'OFF',
                 new: data[i].fan_status == 1 ? 'ON' : 'OFF'
             });
@@ -343,12 +371,15 @@ function updateCharts(fullData) {
     tempChart.data.datasets[2].data = new Array(labels.length).fill(thresholds.fan_off_temp);
     tempChart.data.datasets[3].data = fanEvents;
     
-    tempChart.options.scales.y.min = Math.min(tempRange.min, thresholds.fan_off_temp - 2);
-    tempChart.options.scales.y.max = Math.max(tempRange.max, thresholds.fan_on_temp + 2);
-    tempChart.update('none'); // Update without animation
+    // Defensive Y-Axis
+    const tMin = Math.min(tempRange.min, thresholds.fan_off_temp - 2);
+    const tMax = Math.max(tempRange.max, thresholds.fan_on_temp + 2);
+    tempChart.options.scales.y.min = isValidNumber(tMin) ? tMin : 0;
+    tempChart.options.scales.y.max = isValidNumber(tMax) ? tMax : 50;
+    tempChart.update('none'); 
 
     // Hum Chart
-    const humValues = data.map(row => row.humidity);
+    const humValues = data.map(row => sanitizeValue(row.humidity, 0));
     const humRange = getAdaptiveRange(humValues, 10);
     
     // Detect Pump Events
@@ -357,7 +388,7 @@ function updateCharts(fullData) {
         if (data[i].pump_status !== data[i-1].pump_status) {
             pumpEvents.push({
                 x: data[i].timestamp.split(" ")[1],
-                y: data[i].humidity,
+                y: sanitizeValue(data[i].humidity, 0),
                 prev: data[i-1].pump_status == 1 ? 'ON' : 'OFF',
                 new: data[i].pump_status == 1 ? 'ON' : 'OFF'
             });
@@ -370,8 +401,11 @@ function updateCharts(fullData) {
     humChart.data.datasets[2].data = new Array(labels.length).fill(thresholds.pump_off_humidity);
     humChart.data.datasets[3].data = pumpEvents;
     
-    humChart.options.scales.y.min = Math.min(0, thresholds.pump_on_humidity - 10);
-    humChart.options.scales.y.max = Math.max(humRange.max, thresholds.pump_off_humidity + 10);
+    // Defensive Y-Axis
+    const hMin = Math.min(0, thresholds.pump_on_humidity - 10);
+    const hMax = Math.max(humRange.max, thresholds.pump_off_humidity + 10);
+    humChart.options.scales.y.min = isValidNumber(hMin) ? hMin : 0;
+    humChart.options.scales.y.max = isValidNumber(hMax) ? hMax : 100;
     humChart.update('none');
 
     // Lux Chart

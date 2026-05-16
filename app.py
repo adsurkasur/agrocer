@@ -179,10 +179,13 @@ def insert_sensor_data(temp, hum, lux, fan_stat=None, pump_stat=None, f_on=None,
     conn.close()
 
     # Log events if state changed
-    if fan_stat is not None and prev_fan is not None and fan_stat != prev_fan:
-        log_actuator_event("Fan", prev_fan, fan_stat, temp, "temperature")
-    if pump_stat is not None and prev_pump is not None and pump_stat != prev_pump:
-        log_actuator_event("Pump", prev_pump, pump_stat, hum, "humidity")
+    try:
+        if fan_stat is not None and prev_fan is not None and fan_stat != prev_fan:
+            log_actuator_event("Fan", prev_fan, fan_stat, temp, "temperature")
+        if pump_stat is not None and prev_pump is not None and pump_stat != prev_pump:
+            log_actuator_event("Pump", prev_pump, pump_stat, hum, "humidity")
+    except Exception as e:
+        logger.error("Failed to log actuator event: %s", e)
 
     return ts
 
@@ -262,8 +265,11 @@ def detect_anomaly(temperature, humidity, lux, repeat_window=5):
         ):
             return "repeated_values"
     # Obvious corruption
-    if abs(temperature) > 1000 or abs(humidity) > 1e6 or lux > 1e9:
-        return "corrupted"
+    try:
+        if abs(float(temperature)) > 1000 or abs(float(humidity)) > 1e6 or float(lux) > 1e9:
+            return "corrupted"
+    except (TypeError, ValueError):
+        return "invalid_types"
     return None
 
 
@@ -461,17 +467,17 @@ def latest_data():
         data.append({
             "id": row["id"],
             "timestamp": row["timestamp"],
-            "temperature": temperature,
-            "humidity": humidity,
-            "lux": lux,
-            "fan_status": fan_stat,
-            "pump_status": pump_stat,
-            "fan_on_temp": row["fan_on_temp"],
-            "fan_off_temp": row["fan_off_temp"],
-            "pump_on_humidity": row["pump_on_humidity"],
-            "pump_off_humidity": row["pump_off_humidity"],
-            "environment_status": get_environment_status(temperature, humidity),
-            "light_status": get_light_status(lux)
+            "temperature": float(temperature or 0),
+            "humidity": float(humidity or 0),
+            "lux": float(lux or 0),
+            "fan_status": int(fan_stat) if fan_stat is not None else 0,
+            "pump_status": int(pump_stat) if pump_stat is not None else 0,
+            "fan_on_temp": float(row["fan_on_temp"] or 30.0),
+            "fan_off_temp": float(row["fan_off_temp"] or 28.0),
+            "pump_on_humidity": float(row["pump_on_humidity"] or 40.0),
+            "pump_off_humidity": float(row["pump_off_humidity"] or 45.0),
+            "environment_status": get_environment_status(float(temperature or 0), float(humidity or 0)),
+            "light_status": get_light_status(float(lux or 0))
         })
     return jsonify(data)
 
@@ -493,7 +499,12 @@ def get_thresholds():
     """, one=True)
     
     if row:
-        return jsonify(dict(row))
+        return jsonify({
+            "fan_on_temp": float(row["fan_on_temp"] or 30.0),
+            "fan_off_temp": float(row["fan_off_temp"] or 28.0),
+            "pump_on_humidity": float(row["pump_on_humidity"] or 40.0),
+            "pump_off_humidity": float(row["pump_off_humidity"] or 45.0)
+        })
         
     return jsonify({
         "fan_on_temp": 30.0,
