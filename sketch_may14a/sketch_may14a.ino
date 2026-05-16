@@ -52,6 +52,20 @@ float hum  = 0;
 float lux  = 0;
 
 // =========================
+// THRESHOLDS & ACTUATORS
+// =========================
+float FAN_ON_TEMP       = 30.0;
+float FAN_OFF_TEMP      = 28.0;
+float PUMP_ON_HUMIDITY  = 40.0;
+float PUMP_OFF_HUMIDITY = 45.0;
+
+int fan_status  = 0;  // 0 = OFF, 1 = ON
+int pump_status = 0;  // 0 = OFF, 1 = ON
+
+unsigned long fan_last_changed  = 0;
+unsigned long pump_last_changed = 0;
+
+// =========================
 // TIMER
 // =========================
 unsigned long lastSensor = 0;
@@ -276,41 +290,35 @@ void loop() {
   }
 
   // =========================
-  // FAN CONTROL
+  // FAN CONTROL (Hysteresis)
   // =========================
-  if (suhu > 29) {
-
-    digitalWrite(
-      RELAY_KIPAS,
-      LOW
-    );
-
-  } else if (suhu < 28) {
-
-    digitalWrite(
-      RELAY_KIPAS,
-      HIGH
-    );
+  if (suhu > FAN_ON_TEMP && fan_status == 0) {
+    fan_status = 1;
+    fan_last_changed = millis();
+    digitalWrite(RELAY_KIPAS, LOW); // ON
+    Serial.printf("ACTUATOR: Fan ON | Temp: %.1f > %.1f\n", suhu, FAN_ON_TEMP);
+  } else if (suhu < FAN_OFF_TEMP && fan_status == 1) {
+    fan_status = 0;
+    fan_last_changed = millis();
+    digitalWrite(RELAY_KIPAS, HIGH); // OFF
+    Serial.printf("ACTUATOR: Fan OFF | Temp: %.1f < %.1f\n", suhu, FAN_OFF_TEMP);
   }
 
   delay(10);
 
   // =========================
-  // PUMP CONTROL
+  // PUMP CONTROL (Hysteresis)
   // =========================
-  if (hum < 75) {
-
-    digitalWrite(
-      RELAY_POMPA,
-      LOW
-    );
-
-  } else if (hum > 80) {
-
-    digitalWrite(
-      RELAY_POMPA,
-      HIGH
-    );
+  if (hum < PUMP_ON_HUMIDITY && pump_status == 0) {
+    pump_status = 1;
+    pump_last_changed = millis();
+    digitalWrite(RELAY_POMPA, LOW); // ON
+    Serial.printf("ACTUATOR: Pump ON | Hum: %.1f < %.1f\n", hum, PUMP_ON_HUMIDITY);
+  } else if (hum > PUMP_OFF_HUMIDITY && pump_status == 1) {
+    pump_status = 0;
+    pump_last_changed = millis();
+    digitalWrite(RELAY_POMPA, HIGH); // OFF
+    Serial.printf("ACTUATOR: Pump OFF | Hum: %.1f > %.1f\n", hum, PUMP_OFF_HUMIDITY);
   }
 
   delay(10);
@@ -337,8 +345,18 @@ void loop() {
     String jsonData = "{";
     jsonData += "\"temperature\":" + String(suhu, 1) + ",";
     jsonData += "\"humidity\":" + String(hum, 1) + ",";
-    jsonData += "\"lux\":" + String(lux, 1);
+    jsonData += "\"lux\":" + String(lux, 1) + ",";
+    jsonData += "\"fan_status\":" + String(fan_status) + ",";
+    jsonData += "\"pump_status\":" + String(pump_status) + ",";
+    jsonData += "\"fan_on_temp\":" + String(FAN_ON_TEMP, 0) + ",";
+    jsonData += "\"fan_off_temp\":" + String(FAN_OFF_TEMP, 0) + ",";
+    jsonData += "\"pump_on_humidity\":" + String(PUMP_ON_HUMIDITY, 0) + ",";
+    jsonData += "\"pump_off_humidity\":" + String(PUMP_OFF_HUMIDITY, 0);
     jsonData += "}";
+
+    // Payload preview
+    Serial.println("JSON Payload Preview:");
+    Serial.println(jsonData);
 
     // HTTPS via secure client (Cloudflare Tunnel)
     WiFiClientSecure client;

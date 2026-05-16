@@ -65,7 +65,41 @@ def init_db():
             timestamp TEXT NOT NULL,
             temperature REAL NOT NULL,
             humidity REAL NOT NULL,
-            lux REAL NOT NULL
+            lux REAL NOT NULL,
+            fan_status INTEGER,
+            pump_status INTEGER,
+            fan_on_temp REAL,
+            fan_off_temp REAL,
+            pump_on_humidity REAL,
+            pump_off_humidity REAL
+        )
+    """)
+
+    # Migration: Add columns if they don't exist
+    cursor.execute("PRAGMA table_info(sensor_data)")
+    columns = [row[1] for row in cursor.fetchall()]
+    new_cols = [
+        ("fan_status", "INTEGER"),
+        ("pump_status", "INTEGER"),
+        ("fan_on_temp", "REAL"),
+        ("fan_off_temp", "REAL"),
+        ("pump_on_humidity", "REAL"),
+        ("pump_off_humidity", "REAL")
+    ]
+    for col_name, col_type in new_cols:
+        if col_name not in columns:
+            cursor.execute(f"ALTER TABLE sensor_data ADD COLUMN {col_name} {col_type}")
+
+    # Create actuator_logs table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS actuator_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TEXT NOT NULL,
+            actuator_name TEXT NOT NULL,
+            previous_state INTEGER,
+            new_state INTEGER,
+            trigger_value REAL,
+            trigger_type TEXT
         )
     """)
 
@@ -96,20 +130,60 @@ def query_db(query, args=(), one=False):
 # =========================
 # INSERT SENSOR DATA
 # =========================
-def insert_sensor_data(temp, hum, lux, timestamp=None):
-    """Insert a sensor row. Timestamp is ISO8601 UTC if not provided."""
-    ts = timestamp or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+def get_latest_actuator_states():
+    row = query_db("SELECT fan_status, pump_status FROM sensor_data ORDER BY id DESC LIMIT 1", one=True)
+    if row:
+        return row["fan_status"], row["pump_status"]
+    return None, None
+
+
+def log_actuator_event(name, prev, new, val, type_):
+    if prev == new:
+        return
+    ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute(
         """
-        INSERT INTO sensor_data (timestamp, temperature, humidity, lux)
-        VALUES (?, ?, ?, ?)
+        INSERT INTO actuator_logs (timestamp, actuator_name, previous_state, new_state, trigger_value, trigger_type)
+        VALUES (?, ?, ?, ?, ?, ?)
         """,
-        (ts, temp, hum, lux)
+        (ts, name, prev, new, val, type_)
     )
     conn.commit()
     conn.close()
+
+
+def insert_sensor_data(temp, hum, lux, fan_stat=None, pump_stat=None, f_on=None, f_off=None, p_on=None, p_off=None, timestamp=None):
+    """Insert a sensor row. Timestamp is ISO8601 UTC if not provided."""
+    ts = timestamp or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    # Get previous states for logging before insertion
+    prev_fan, prev_pump = get_latest_actuator_states()
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        INSERT INTO sensor_data (
+            timestamp, temperature, humidity, lux, 
+            fan_status, pump_status, 
+            fan_on_temp, fan_off_temp, 
+            pump_on_humidity, pump_off_humidity
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (ts, temp, hum, lux, fan_stat, pump_stat, f_on, f_off, p_on, p_off)
+    )
+    conn.commit()
+    conn.close()
+
+    # Log events if state changed
+    if fan_stat is not None and prev_fan is not None and fan_stat != prev_fan:
+        log_actuator_event("Fan", prev_fan, fan_stat, temp, "temperature")
+    if pump_stat is not None and prev_pump is not None and pump_stat != prev_pump:
+        log_actuator_event("Pump", prev_pump, pump_stat, hum, "humidity")
+
     return ts
 
 
@@ -133,16 +207,38 @@ def validate_sensor_payload(data):
             return False, f"missing {k}"
         if not is_valid_number(data[k]):
             return False, f"invalid {k}"
+    
     t = float(data["temperature"])
     h = float(data["humidity"])
     l = float(data["lux"])
+    
     if t < -20 or t > 80:
         return False, "temperature out of plausible range"
     if h < 0 or h > 100:
         return False, "humidity out of plausible range"
     if l < 0:
         return False, "lux must be >= 0"
-    return True, {"temperature": t, "humidity": h, "lux": l}
+
+    # Optional fields (Actuator telemetry)
+    def to_float(v):
+        try: return float(v) if v is not None else None
+        except: return None
+    
+    def to_int(v):
+        try: return int(v) if v is not None else None
+        except: return None
+
+    return True, {
+        "temperature": t, 
+        "humidity": h, 
+        "lux": l,
+        "fan_status": to_int(data.get("fan_status")),
+        "pump_status": to_int(data.get("pump_status")),
+        "fan_on_temp": to_float(data.get("fan_on_temp")),
+        "fan_off_temp": to_float(data.get("fan_off_temp")),
+        "pump_on_humidity": to_float(data.get("pump_on_humidity")),
+        "pump_off_humidity": to_float(data.get("pump_off_humidity"))
+    }
 
 
 # -------------------------
@@ -308,7 +404,15 @@ def receive_sensor():
 
         anomaly = detect_anomaly(temperature, humidity, lux)
 
-        inserted_ts = insert_sensor_data(temperature, humidity, lux)
+        inserted_ts = insert_sensor_data(
+            temperature, humidity, lux,
+            fan_stat=result.get("fan_status"),
+            pump_stat=result.get("pump_status"),
+            f_on=result.get("fan_on_temp"),
+            f_off=result.get("fan_off_temp"),
+            p_on=result.get("pump_on_humidity"),
+            p_off=result.get("pump_off_humidity")
+        )
 
         if anomaly:
             logger.warning("Sensor anomaly detected: %s data=%s", anomaly, result)
@@ -341,21 +445,62 @@ def latest_data():
     rows = list(rows)[::-1]
     data = []
     for row in rows:
-        temperature = row[2]
-        humidity = row[3]
-        lux = row[4]
+        temperature = row["temperature"]
+        humidity = row["humidity"]
+        lux = row["lux"]
+        
+        # Actuator state with legacy fallback
+        fan_stat = row["fan_status"]
+        if fan_stat is None:
+            fan_stat = 1 if get_fan_status(temperature) == "ON" else 0
+            
+        pump_stat = row["pump_status"]
+        if pump_stat is None:
+            pump_stat = 1 if get_pump_status(humidity) == "ON" else 0
+
         data.append({
-            "id": row[0],
-            "timestamp": row[1],
+            "id": row["id"],
+            "timestamp": row["timestamp"],
             "temperature": temperature,
             "humidity": humidity,
             "lux": lux,
+            "fan_status": fan_stat,
+            "pump_status": pump_stat,
+            "fan_on_temp": row["fan_on_temp"],
+            "fan_off_temp": row["fan_off_temp"],
+            "pump_on_humidity": row["pump_on_humidity"],
+            "pump_off_humidity": row["pump_off_humidity"],
             "environment_status": get_environment_status(temperature, humidity),
-            "light_status": get_light_status(lux),
-            "fan_status": get_fan_status(temperature),
-            "pump_status": get_pump_status(humidity),
+            "light_status": get_light_status(lux)
         })
     return jsonify(data)
+
+
+@app.route('/api/actuator-logs')
+def get_actuator_logs():
+    limit = request.args.get('limit', 50, type=int)
+    rows = query_db("SELECT * FROM actuator_logs ORDER BY id DESC LIMIT ?", (limit,))
+    return jsonify([dict(row) for row in rows])
+
+
+@app.route('/api/thresholds')
+def get_thresholds():
+    row = query_db("""
+        SELECT fan_on_temp, fan_off_temp, pump_on_humidity, pump_off_humidity 
+        FROM sensor_data 
+        WHERE fan_on_temp IS NOT NULL 
+        ORDER BY id DESC LIMIT 1
+    """, one=True)
+    
+    if row:
+        return jsonify(dict(row))
+        
+    return jsonify({
+        "fan_on_temp": 30.0,
+        "fan_off_temp": 28.0,
+        "pump_on_humidity": 40.0,
+        "pump_off_humidity": 45.0
+    })
 
 
 # =========================
@@ -429,9 +574,14 @@ def clear_database():
     cursor = conn.cursor()
 
     cursor.execute("DELETE FROM sensor_data")
+    cursor.execute("DELETE FROM actuator_logs")
     cursor.execute("""
         DELETE FROM sqlite_sequence
         WHERE name='sensor_data'
+    """)
+    cursor.execute("""
+        DELETE FROM sqlite_sequence
+        WHERE name='actuator_logs'
     """)
 
     conn.commit()
@@ -452,7 +602,10 @@ def export_database_xlsx():
     cursor = conn.cursor()
     cursor.execute(
         """
-        SELECT id, timestamp, temperature, humidity, lux
+        SELECT id, timestamp, temperature, humidity, lux, 
+               fan_status, pump_status, 
+               fan_on_temp, fan_off_temp, 
+               pump_on_humidity, pump_off_humidity
         FROM sensor_data
         ORDER BY id ASC
         """
@@ -463,7 +616,12 @@ def export_database_xlsx():
     workbook = Workbook()
     worksheet = workbook.active
     worksheet.title = "Sensor Data"
-    worksheet.append(["ID", "Timestamp", "Temperature", "Humidity", "Lux"])
+    worksheet.append([
+        "ID", "Timestamp", "Temperature", "Humidity", "Lux",
+        "Fan Status", "Pump Status", 
+        "Fan ON Temp", "Fan OFF Temp", 
+        "Pump ON Hum", "Pump OFF Hum"
+    ])
 
     for row in rows:
         worksheet.append([
@@ -472,6 +630,12 @@ def export_database_xlsx():
             row[2],
             row[3],
             row[4],
+            row[5],
+            row[6],
+            row[7],
+            row[8],
+            row[9],
+            row[10]
         ])
 
     buffer = BytesIO()
