@@ -38,7 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchThresholds();
 
     // Refresh intervals
-    setInterval(updateDashboard, 1000); 
+    setInterval(updateDashboard, 1000);
     setInterval(updateLiveClock, 1000);
     setInterval(fetchThresholds, 5000); // Increased slightly from 1s to be reasonable
 });
@@ -121,7 +121,7 @@ function createChart(elementId, label, borderColor, backgroundColor, extraDatase
                 },
                 tooltip: {
                     callbacks: {
-                        label: function(context) {
+                        label: function (context) {
                             const ds = context.dataset;
                             if (ds.isEvent) {
                                 return `[EVENT] ${ds.actuator}: ${context.raw.prev} -> ${context.raw.new}`;
@@ -174,13 +174,13 @@ function initCharts() {
 
     tempChart = createChart('tempChart', 'Temperature (°C)', '#3b82f6', 'rgba(59, 130, 246, 0.1)', [
         thresholdStyle('FAN ON', '#ef4444'),
-        thresholdStyle('FAN OFF', '#f87171'),
+        thresholdStyle('FAN OFF', '#8b5cf6'),
         eventStyle('Fan', '#1e293b')
     ]);
 
     humChart = createChart('humChart', 'Humidity (%)', '#10b981', 'rgba(16, 185, 129, 0.1)', [
         thresholdStyle('PUMP ON', '#ef4444'),
-        thresholdStyle('PUMP OFF', '#f87171'),
+        thresholdStyle('PUMP OFF', '#8b5cf6'),
         eventStyle('Pump', '#1e293b')
     ]);
 
@@ -194,12 +194,29 @@ function exportDatabase() {
     window.location.href = '/api/export/xlsx';
 }
 
+async function clearDatabase() {
+    if (confirm("Are you sure you want to clear all data? This action cannot be undone.")) {
+        try {
+            const res = await fetch('/api/clear', { method: 'POST' });
+            if (res.ok) {
+                alert("Database cleared successfully!");
+                location.reload();
+            } else {
+                alert("Failed to clear database.");
+            }
+        } catch (e) {
+            console.error("Clear database error:", e);
+            alert("Error connecting to server.");
+        }
+    }
+}
+
 async function fetchThresholds() {
     try {
         const res = await fetch('/api/thresholds');
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         const data = await res.json();
-        
+
         // Defensive merge: only accept valid numbers
         if (data) {
             thresholds.fan_on_temp = sanitizeValue(data.fan_on_temp, thresholds.fan_on_temp);
@@ -331,7 +348,7 @@ function updateLogTable(logs) {
 function updateActuatorStats(logs) {
     const fanCount = logs.filter(l => l.actuator_name === "Fan" && l.new_state === 1).length;
     const pumpCount = logs.filter(l => l.actuator_name === "Pump" && l.new_state === 1).length;
-    
+
     // Note: This is an approximation based on the limit. 
     // In a real app, you'd fetch totals from a summary endpoint.
     document.getElementById("totalFan").innerText = fanCount;
@@ -348,18 +365,18 @@ function updateCharts(fullData) {
     // Temp Chart
     const tempValues = data.map(row => sanitizeValue(row.temperature, 0));
     const tempRange = getAdaptiveRange(tempValues, 5);
-    
+
     // Diagnostic
     console.log(`[DIAG] Temp: points=${tempValues.length}, range=[${tempRange.min}, ${tempRange.max}], thresholds=[${thresholds.fan_on_temp}, ${thresholds.fan_off_temp}]`);
 
     // Detect Fan Events in current window
     const fanEvents = [];
     for (let i = 1; i < data.length; i++) {
-        if (data[i].fan_status !== data[i-1].fan_status) {
+        if (data[i].fan_status !== data[i - 1].fan_status) {
             fanEvents.push({
                 x: data[i].timestamp.split(" ")[1],
                 y: sanitizeValue(data[i].temperature, 0),
-                prev: data[i-1].fan_status == 1 ? 'ON' : 'OFF',
+                prev: data[i - 1].fan_status == 1 ? 'ON' : 'OFF',
                 new: data[i].fan_status == 1 ? 'ON' : 'OFF'
             });
         }
@@ -370,26 +387,26 @@ function updateCharts(fullData) {
     tempChart.data.datasets[1].data = new Array(labels.length).fill(thresholds.fan_on_temp);
     tempChart.data.datasets[2].data = new Array(labels.length).fill(thresholds.fan_off_temp);
     tempChart.data.datasets[3].data = fanEvents;
-    
+
     // Defensive Y-Axis
     const tMin = Math.min(tempRange.min, thresholds.fan_off_temp - 2);
     const tMax = Math.max(tempRange.max, thresholds.fan_on_temp + 2);
     tempChart.options.scales.y.min = isValidNumber(tMin) ? tMin : 0;
     tempChart.options.scales.y.max = isValidNumber(tMax) ? tMax : 50;
-    tempChart.update('none'); 
+    tempChart.update('none');
 
     // Hum Chart
     const humValues = data.map(row => sanitizeValue(row.humidity, 0));
     const humRange = getAdaptiveRange(humValues, 10);
-    
+
     // Detect Pump Events
     const pumpEvents = [];
     for (let i = 1; i < data.length; i++) {
-        if (data[i].pump_status !== data[i-1].pump_status) {
+        if (data[i].pump_status !== data[i - 1].pump_status) {
             pumpEvents.push({
                 x: data[i].timestamp.split(" ")[1],
                 y: sanitizeValue(data[i].humidity, 0),
-                prev: data[i-1].pump_status == 1 ? 'ON' : 'OFF',
+                prev: data[i - 1].pump_status == 1 ? 'ON' : 'OFF',
                 new: data[i].pump_status == 1 ? 'ON' : 'OFF'
             });
         }
@@ -400,7 +417,7 @@ function updateCharts(fullData) {
     humChart.data.datasets[1].data = new Array(labels.length).fill(thresholds.pump_on_humidity);
     humChart.data.datasets[2].data = new Array(labels.length).fill(thresholds.pump_off_humidity);
     humChart.data.datasets[3].data = pumpEvents;
-    
+
     // Defensive Y-Axis
     const hMin = Math.min(0, thresholds.pump_on_humidity - 10);
     const hMax = Math.max(humRange.max, thresholds.pump_off_humidity + 10);
