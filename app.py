@@ -472,10 +472,10 @@ def latest_data():
             "lux": float(lux or 0),
             "fan_status": int(fan_stat) if fan_stat is not None else 0,
             "pump_status": int(pump_stat) if pump_stat is not None else 0,
-            "fan_on_temp": float(row["fan_on_temp"] or 30.0),
-            "fan_off_temp": float(row["fan_off_temp"] or 28.0),
-            "pump_on_humidity": float(row["pump_on_humidity"] or 40.0),
-            "pump_off_humidity": float(row["pump_off_humidity"] or 45.0),
+            "fan_on_temp": float(row["fan_on_temp"]) if "fan_on_temp" in row.keys() and row["fan_on_temp"] is not None else 30.0,
+            "fan_off_temp": float(row["fan_off_temp"]) if "fan_off_temp" in row.keys() and row["fan_off_temp"] is not None else 28.0,
+            "pump_on_humidity": float(row["pump_on_humidity"]) if "pump_on_humidity" in row.keys() and row["pump_on_humidity"] is not None else 40.0,
+            "pump_off_humidity": float(row["pump_off_humidity"]) if "pump_off_humidity" in row.keys() and row["pump_off_humidity"] is not None else 45.0,
             "environment_status": get_environment_status(float(temperature or 0), float(humidity or 0)),
             "light_status": get_light_status(float(lux or 0))
         })
@@ -668,15 +668,19 @@ def export_database_xlsx():
 # =========================
 @app.route('/')
 def dashboard():
-
     return render_template('index.html')
+
+
+# =========================
+# INITIALIZE
+# =========================
+init_db()
 
 
 # =========================
 # MAIN
 # =========================
 if __name__ == '__main__':
-    init_db()
     logger.info("Starting application")
     logger.info("OS: %s; Python: %s; DB: %s; DEBUG: %s", platform.platform(), sys.version.split()[0], DATABASE, DEBUG)
     app.run(host=HOST, port=PORT, debug=DEBUG)
