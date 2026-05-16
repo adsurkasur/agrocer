@@ -78,15 +78,25 @@
                 <div class="status-value" id="pumpStatus">---</div>
                 <div class="status-desc" id="pumpDesc">Waiting for sensor data...</div>
             </div>
+        </div>
 
-            <!-- WEATHER -->
-            <div class="status-card">
-                <div class="status-title">
-                    Outside Weather
-                    <i class="fas fa-cloud-sun"></i>
-                </div>
-                <div class="status-value" id="weatherStatus">---</div>
-                <div class="status-desc" id="weatherDesc">Waiting for weather data...</div>
+        <!-- ACTUATOR SUMMARY -->
+        <div class="status-grid summary-grid">
+            <div class="status-card mini-card">
+                <div class="status-title">Fan Activations <i class="fas fa-rotate text-primary"></i></div>
+                <div class="status-value mini" id="totalFan">0</div>
+            </div>
+            <div class="status-card mini-card">
+                <div class="status-title">Pump Activations <i class="fas fa-faucet text-primary"></i></div>
+                <div class="status-value mini" id="totalPump">0</div>
+            </div>
+            <div class="status-card mini-card">
+                <div class="status-title">Latest Event <i class="fas fa-clock text-primary"></i></div>
+                <div class="status-value mini" style="font-size: 1.1rem;" id="latestEventTime">---</div>
+            </div>
+            <div class="status-card mini-card">
+                <div class="status-title">Weather <i class="fas fa-cloud-sun text-primary"></i></div>
+                <div class="status-value mini" style="font-size: 1.1rem;" id="weatherStatus">---</div>
             </div>
         </div>
 
@@ -112,22 +122,43 @@
             </div>
         </div>
 
-        <!-- TABLE -->
-        <div class="table-card">
-            <div class="chart-title" style="margin-bottom: 1rem;"><i class="fas fa-table"></i> Historical Data</div>
-            <div class="table-wrapper">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>No</th>
-                            <th>Timestamp</th>
-                            <th>Temp (°C)</th>
-                            <th>Humidity (%)</th>
-                            <th>Lux (lx)</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tableBody"></tbody>
-                </table>
+        <!-- TABLES -->
+        <div class="chart-grid">
+            <!-- HISTORICAL DATA -->
+            <div class="table-card">
+                <div class="chart-title" style="margin-bottom: 1rem;"><i class="fas fa-table"></i> Historical Data</div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>No</th>
+                                <th>Timestamp</th>
+                                <th>Temp (°C)</th>
+                                <th>Hum (%)</th>
+                                <th>Lux (lx)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ACTUATOR LOGS -->
+            <div class="table-card">
+                <div class="chart-title" style="margin-bottom: 1rem;"><i class="fas fa-list-check"></i> Actuator Activation Logs</div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Actuator</th>
+                                <th>Event</th>
+                                <th>Trigger</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logTableBody"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
